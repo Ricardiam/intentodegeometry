@@ -1,14 +1,13 @@
 import pygame
-import abc
 
 # Inicializando pygame
 pygame.init()
 
-# Clase base para objetos del juego
-class GameObject(abc.ABC):
-    """Clase abstracta base para todos los objetos del juego"""
+# Clase base simple 
+class GameObject:  #  plantilla
+    """Clase base simple para todos los objetos del juego"""
     
-    def __init__(self, x, y, width, height, color):
+    def __init__(self, x, y, width, height, color):  # ancho y alto
         self.x = x
         self.y = y
         self.width = width
@@ -21,17 +20,15 @@ class GameObject(abc.ABC):
         self.rect.x = self.x
         self.rect.y = self.y
     
-    @abc.abstractmethod
-    def update(self, *args):
-        """Método abstracto para actualizar el objeto"""
+    def update(self):
+        """Método base para actualizar (las clases hijas lo sobrescriben)"""
         pass
     
-    @abc.abstractmethod
     def draw(self, screen):
-        """Método abstracto para dibujar el objeto"""
+        """Método base para dibujar (las clases hijas lo sobrescriben)"""
         pass
 
-# Clase para objetos físicos que se mueven horizontalmente
+# Clase para objetos que se mueven horizontalmente
 class MovableObject(GameObject):
     """Clase base para objetos que se mueven horizontalmente"""
     
@@ -102,66 +99,46 @@ class Ground(MovableObject):
         pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
         pygame.draw.rect(screen, self.color, (self.x + self.width, self.y, self.width, self.height))
 
-# ===================================================================
-# SECCIÓN MODIFICADA: Obstacle ahora incluye la lógica del triángulo
-# ===================================================================
+# Clase de obstáculos
 class Obstacle(MovableObject):
-    """
-    Clase unificada para obstáculos. Puede representar diferentes formas,
-    como triángulos o rectángulos, según el parámetro 'shape'.
-    """
+    """Clase para obstáculos del juego"""
     
     def __init__(self, x, y, size, color, speed, screen_width, shape='triangle'):
-        # Se usa 'size' tanto para 'width' como para 'height' en el superconstructor
         super().__init__(x, y, size, size, color, speed)
         self.screen_width = screen_width
         self.shape = shape
         self.passed = False
-        
-        # El rectángulo de colisión se ajusta según la forma.
-        # Para el triángulo, la base está en 'y', pero la colisión debe
-        # considerar la altura completa desde el vértice superior.
         self.update_rect()
 
     def update_rect(self):
-        """
-        Actualiza el rectángulo de colisión basado en la forma.
-        Para un triángulo que apunta hacia arriba, el 'y' del rect debe ser
-        desplazado hacia arriba por la altura del obstáculo.
-        """
+        """Actualiza el rectángulo de colisión basado en la forma"""
         self.rect.x = self.x
         if self.shape == 'triangle':
             self.rect.y = self.y - self.height
-        else: # Por defecto (o para 'rectangle')
+        else:
             self.rect.y = self.y
     
     def update(self):
-        """Actualiza la posición del obstáculo y resetea su estado si sale de pantalla."""
+        """Actualiza la posición del obstáculo"""
         self.move_horizontal()
         
-        # Si el obstáculo sale de la pantalla, reiniciar posición y el flag 'passed'
         if self.x < -self.width:
             self.x = self.screen_width + 50
-            self.passed = False  # Resetear flag cuando reaparece
+            self.passed = False
             self.update_rect()
     
     def draw(self, screen):
-        """Dibuja el obstáculo según la forma especificada ('triangle' o 'rectangle')."""
+        """Dibuja el obstáculo según la forma especificada"""
         if self.shape == 'triangle':
-            # Dibuja un triángulo con la base en (self.x, self.y)
             vertex_1 = (self.x, self.y)
             vertex_2 = (self.x + self.width, self.y)
             vertex_3 = (self.x + self.width // 2, self.y - self.height)
             pygame.draw.polygon(screen, self.color, [vertex_1, vertex_2, vertex_3])
         else:
-            # Por defecto, dibuja un rectángulo
             pygame.draw.rect(screen, self.color, self.rect)
-# ===================================================================
-# FIN DE LA SECCIÓN MODIFICADA
-# ===================================================================
 
 # Clase para la interfaz de usuario
-class UI:
+class               UI:
     """Clase para manejar la interfaz de usuario"""
     
     def __init__(self, screen_size):
@@ -206,14 +183,14 @@ class UI:
         screen.blit(self.win_text, win_rect)
         screen.blit(self.restart_text, restart_rect)
 
-# Clase principal del juego
+# 1. ------------- Clase principal del juego  -------------------    
 class Game:
     """Clase principal que maneja todo el juego"""
     
     def __init__(self):
         self.screen_size = (800, 600)
         self.screen = pygame.display.set_mode(self.screen_size)
-        pygame.display.set_caption("Geometry Hash")
+        pygame.display.set_caption("Geometry Dash")
         self.clock = pygame.time.Clock()
         
         self.COLORS = {
@@ -224,13 +201,13 @@ class Game:
             'DARK_GRAY': (50, 50, 50)
         }
         
-        self.game_speed = 5
+        self.game_speed = 10
         self.game_over = False
         self.game_won = False
         self.running = True
         self.score = 0
         
-        self.init_game_objects()
+        self.init_game_objects() 
         self.ui = UI(self.screen_size)
     
     def init_game_objects(self):
@@ -245,7 +222,6 @@ class Game:
         self.ground = Ground(0, ground_y, self.screen_size[0], ground_height, 
                                self.COLORS['DARK_GRAY'], self.game_speed, self.screen_size[0])
         
-        # --- Se instancia directamente Obstacle con shape='triangle' ---
         obstacle_size = 35
         self.obstacle = Obstacle(self.screen_size[0] + 50, ground_y, obstacle_size, 
                                  self.COLORS['RED'], self.game_speed, self.screen_size[0], 
