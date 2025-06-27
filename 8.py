@@ -94,6 +94,10 @@ class Juego:
         pygame.display.set_caption("Geometry Dash")
         self.reloj = pygame.time.Clock()
 
+        # --- LÍNEA MODIFICADA ---
+        # Cargar, escalar y convertir la imagen de fondo
+        self.fondo = pygame.transform.scale(pygame.image.load("bg.png").convert(), (800, 600))
+
         self.colores = {
             "AZUL": (73, 115, 255),
             "BLANCO": (255, 255, 255),
@@ -111,7 +115,7 @@ class Juego:
 
         # Cargar música y sonidos
         self.cargar_audio()
-        
+
         self.inicializar_juego()
 
     def cargar_audio(self):
@@ -119,12 +123,12 @@ class Juego:
         try:
             # Cargar música de fondo del juego
             self.musica_juego = "bossfight-Vextron.mp3"
-            
+
             # Cargar sonido de game over
             self.sonido_game_over = pygame.mixer.Sound("Castle-town.mp3")
-            
+
             print("Audio cargado correctamente")
-            
+
         except pygame.error as e:
             print(f"Error al cargar audio: {e}")
             print("Asegúrate de que los archivos de audio estén en la misma carpeta que el juego")
@@ -173,7 +177,7 @@ class Juego:
         self.obstaculos_activos = []
 
         self.distancia_para_siguiente_obstaculo = self.obstaculos_restantes_mapa.pop(0)
-        
+
         # Reproducir música del juego al iniciar
         self.reproducir_musica_juego()
 
@@ -243,7 +247,9 @@ class Juego:
         ]
 
     def dibujar_juego(self):
-        self.pantalla.fill(self.colores["AZUL"])
+        # --- LÍNEA MODIFICADA ---
+        # Dibujar la imagen de fondo en lugar del color sólido
+        self.pantalla.blit(self.fondo, (0, 0))
         self.jugador.dibujar(self.pantalla)
         self.suelo.dibujar(self.pantalla)
 
@@ -284,7 +290,7 @@ class Juego:
             self.dibujar_juego()
             pygame.display.flip()
             self.reloj.tick(60)
-        
+
         # Detener audio antes de salir
         self.detener_audio()
         pygame.quit()

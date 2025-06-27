@@ -1,4 +1,5 @@
 import pygame
+import math
 
 pygame.init()
 pygame.mixer.init()  # Inicializar el mixer de audio
@@ -38,7 +39,14 @@ class Jugador(ObjetoJuego):
         self.actualizar_rectangulo()
 
     def dibujar(self, pantalla):
-        pygame.draw.rect(pantalla, self.color, self.rectangulo)
+        if hasattr(self, 'juego') and self.juego.imagenes_cargadas:
+            # Usar imagen del avatar
+            avatar_rect = self.juego.img_avatar.get_rect()
+            avatar_rect.center = (self.x + self.ancho//2, self.y + self.alto//2)
+            pantalla.blit(self.juego.img_avatar, avatar_rect)
+        else:
+            # Usar rectángulo básico
+            pygame.draw.rect(pantalla, self.color, self.rectangulo)
 
 
 class ObjetoMovil(ObjetoJuego):
@@ -74,12 +82,19 @@ class Obstaculo(ObjetoMovil):
         self.mover()
 
     def dibujar(self, pantalla):
-        puntos = [
-            (self.x, self.y),
-            (self.x + self.ancho, self.y),
-            (self.x + self.ancho // 2, self.y - self.alto),
-        ]
-        pygame.draw.polygon(pantalla, self.color, puntos)
+        if hasattr(self, 'juego') and self.juego.imagenes_cargadas:
+            # Usar imagen del bloque
+            block_rect = self.juego.img_block.get_rect()
+            block_rect.center = (self.x + self.ancho//2, self.y - self.alto//2)
+            pantalla.blit(self.juego.img_block, block_rect)
+        else:
+            # Usar triángulo básico
+            puntos = [
+                (self.x, self.y),
+                (self.x + self.ancho, self.y),
+                (self.x + self.ancho // 2, self.y - self.alto),
+            ]
+            pygame.draw.polygon(pantalla, self.color, puntos)
 
     def obtener_rectangulo_colision(self):
         # Un rectángulo más estrecho para detectar colisiones
@@ -99,20 +114,69 @@ class Juego:
             "BLANCO": (255, 255, 255),
             "ROJO": (255, 0, 0),
             "GRIS": (50, 50, 50),
+            "AMARILLO": (255, 255, 0),
+            "AZUL_CLARO": (0, 255, 255),
         }
 
         self.velocidad_juego = 10
         self.esta_ejecutando = True
+        
+        # Variables para el fondo animado
+        self.tiempo_animacion = 0
+        self.rectangulos_fondo = []
+        self.generar_rectangulos_fondo()
 
         self.fuente_grande = pygame.font.Font(None, 74)
         self.fuente_normal = pygame.font.Font(None, 48)
 
         self.mapa_nivel_1_distancias = [420] * 20  # 20 obstáculos
 
+        # Cargar imágenes
+        self.cargar_imagenes()
+        
         # Cargar música y sonidos
         self.cargar_audio()
         
         self.inicializar_juego()
+
+    def cargar_imagenes(self):
+        """Carga las imágenes del juego"""
+        try:
+            # Cargar y escalar imágenes
+            self.img_orb_yellow = pygame.image.load("orb-yellow.png").convert_alpha()
+            self.img_orb_yellow = pygame.transform.scale(self.img_orb_yellow, (30, 30))
+            
+            self.img_coin = pygame.image.load("coin.png").convert_alpha()
+            self.img_coin = pygame.transform.scale(self.img_coin, (25, 25))
+            
+            self.img_avatar = pygame.image.load("avatar.png").convert_alpha()
+            self.img_avatar = pygame.transform.scale(self.img_avatar, (50, 50))
+            
+            self.img_block = pygame.image.load("block_1.png").convert_alpha()
+            self.img_block = pygame.transform.scale(self.img_block, (35, 35))
+            
+            print("Imágenes cargadas correctamente")
+            self.imagenes_cargadas = True
+            
+        except pygame.error as e:
+            print(f"Error al cargar imágenes: {e}")
+            print("Usando formas básicas en su lugar")
+            self.imagenes_cargadas = False
+
+    def generar_rectangulos_fondo(self):
+        """Genera rectángulos para el fondo animado"""
+        import random
+        self.rectangulos_fondo = []
+        for i in range(15):
+            x = random.randint(0, 800)
+            y = random.randint(0, 600)
+            tamaño = random.randint(50, 150)
+            velocidad = random.uniform(0.5, 2.0)
+            alpha = random.randint(20, 60)
+            self.rectangulos_fondo.append({
+                'x': x, 'y': y, 'tamaño': tamaño, 
+                'velocidad': velocidad, 'alpha': alpha
+            })
 
     def cargar_audio(self):
         """Carga los archivos de música y sonidos"""
@@ -137,7 +201,7 @@ class Juego:
         if self.musica_juego:
             try:
                 pygame.mixer.music.load(self.musica_juego)
-                pygame.mixer.music.set_volume(0.04)  # Volumen al 4%
+                pygame.mixer.music.set_volume(0.7)  # Volumen al 70%
                 pygame.mixer.music.play(-1)  # Repetir indefinidamente
             except pygame.error as e:
                 print(f"Error al reproducir música del juego: {e}")
@@ -147,10 +211,41 @@ class Juego:
         if self.sonido_game_over:
             try:
                 pygame.mixer.music.stop()  # Detener música de fondo
-                self.sonido_game_over.set_volume(0.1)  # Volumen al 10%
+                self.sonido_game_over.set_volume(0.8)  # Volumen al 80%
                 self.sonido_game_over.play()
             except pygame.error as e:
                 print(f"Error al reproducir sonido de game over: {e}")
+
+    def dibujar_fondo_animado(self):
+        """Dibuja un fondo animado con rectángulos que se mueven"""
+        # Fondo base con gradiente
+        for y in range(600):
+            color_intensity = int(73 + (115 - 73) * (y / 600))
+            color = (color_intensity, color_intensity + 40, 255)
+            pygame.draw.line(self.pantalla, color, (0, y), (800, y))
+        
+        # Rectángulos animados
+        for rect in self.rectangulos_fondo:
+            # Crear superficie con transparencia
+            superficie = pygame.Surface((rect['tamaño'], rect['tamaño']))
+            superficie.set_alpha(rect['alpha'])
+            
+            # Color que cambia con el tiempo
+            color_r = int(100 + 50 * math.sin(self.tiempo_animacion * 0.01 + rect['x'] * 0.01))
+            color_g = int(150 + 50 * math.cos(self.tiempo_animacion * 0.01 + rect['y'] * 0.01))
+            color_b = 255
+            
+            superficie.fill((color_r, color_g, color_b))
+            
+            # Dibujar el rectángulo
+            self.pantalla.blit(superficie, (rect['x'], rect['y']))
+            
+            # Mover rectángulo
+            rect['x'] -= rect['velocidad']
+            if rect['x'] < -rect['tamaño']:
+                rect['x'] = 800
+        
+        self.tiempo_animacion += 1
 
     def detener_audio(self):
         """Detiene toda la música y sonidos"""
@@ -162,6 +257,9 @@ class Juego:
         self.jugador = Jugador(
             100, y_suelo - 50, 50, self.colores["BLANCO"], y_suelo - 50
         )
+        # Asignar referencia del juego al jugador para acceder a las imágenes
+        self.jugador.juego = self
+        
         self.suelo = Suelo(
             0, y_suelo, 800, 150, self.colores["GRIS"], self.velocidad_juego, 800
         )
@@ -197,16 +295,17 @@ class Juego:
         self.distancia_para_siguiente_obstaculo -= self.velocidad_juego
         if self.distancia_para_siguiente_obstaculo <= 0:
             x_nuevo = self.pantalla.get_width()
-            self.obstaculos_activos.append(
-                Obstaculo(
-                    x_nuevo,
-                    self.suelo.y,
-                    35,
-                    self.colores["ROJO"],
-                    self.velocidad_juego,
-                    800,
-                )
+            nuevo_obstaculo = Obstaculo(
+                x_nuevo,
+                self.suelo.y,
+                35,
+                self.colores["ROJO"],
+                self.velocidad_juego,
+                800,
             )
+            # Asignar referencia del juego al obstáculo para acceder a las imágenes
+            nuevo_obstaculo.juego = self
+            self.obstaculos_activos.append(nuevo_obstaculo)
             if self.obstaculos_restantes_mapa:
                 self.distancia_para_siguiente_obstaculo = (
                     self.obstaculos_restantes_mapa.pop(0)
@@ -243,7 +342,9 @@ class Juego:
         ]
 
     def dibujar_juego(self):
-        self.pantalla.fill(self.colores["AZUL"])
+        # Dibujar fondo animado
+        self.dibujar_fondo_animado()
+        
         self.jugador.dibujar(self.pantalla)
         self.suelo.dibujar(self.pantalla)
 
