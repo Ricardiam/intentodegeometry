@@ -1,0 +1,65 @@
+# Entornos virtuales
+venv/
+env/
+ENV/
+.venv/
+.env
+*venv
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Poetry
+.poetry-cache/
+poetry.lock
+
+# Archivos de configuración local
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Archivos de base de datos
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Directorios de construcción
+build/
+dist/
+*.egg-info/
+
+# Directorios de migración generados automáticamente
+alembic/versions/*_*.py
+
+# IDEs y editores
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.editorconfig
+
+# Archivos temporales de sistemas operativos
+Thumbs.db
+.DS_Store
+
+# Archivos de documentación generados automáticamente
+docs/_build/
+site/
+
+# Archivos de prueba
+.pytest_cache/
+.coverage
+coverage.xml
+*.cover

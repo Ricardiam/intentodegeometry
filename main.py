@@ -3,6 +3,11 @@ import pygame
 pygame.init()
 pygame.mixer.init()
 
+# ----------------------------- Cargar imágenes de fondo -----------------------------
+FONDO_NIVEL_1 = pygame.transform.scale(pygame.image.load("bg.png"), (800, 600))
+FONDO_NIVEL_2 = pygame.transform.scale(pygame.image.load("nivel2.jpeg"), (800, 600))
+
+
 # ----------------------------- Clases base -----------------------------
 
 class ObjetoJuego:
@@ -16,7 +21,7 @@ class ObjetoJuego:
 class Jugador(ObjetoJuego):
     def __init__(self, x, y, tamaño, color, y_suelo):
         super().__init__(x, y, tamaño, tamaño, color)
-        self.y_suelo_original = y_suelo  # Guardamos el suelo original
+        self.y_suelo_original = y_suelo
         self.y_suelo = y_suelo
         self.velocidad_y = 0
         self.esta_saltando = False
@@ -27,30 +32,25 @@ class Jugador(ObjetoJuego):
             self.esta_saltando = True
 
     def actualizar(self, plataformas_activas=None):
-        # Aplicar gravedad
         self.velocidad_y += 1
         self.y += self.velocidad_y
-        
-        # Verificar colisión con plataformas (solo en nivel 2)
+
         if plataformas_activas:
             for plataforma in plataformas_activas:
-                # Solo si está cayendo (velocidad_y >= 0) y está encima de la plataforma
                 if (self.velocidad_y >= 0 and 
                     self.rectangulo.colliderect(plataforma.rect) and 
                     self.y < plataforma.rect.y):
-                    
                     self.y = plataforma.rect.y - self.alto
                     self.velocidad_y = 0
                     self.esta_saltando = False
                     self.actualizar_rectangulo()
-                    return  # Salir temprano si aterrizó en plataforma
-        
-        # Verificar colisión con el suelo original
+                    return
+
         if self.y >= self.y_suelo_original:
             self.y = self.y_suelo_original
             self.velocidad_y = 0
             self.esta_saltando = False
-        
+
         self.actualizar_rectangulo()
 
     def dibujar(self, pantalla):
@@ -103,87 +103,131 @@ class PlataformaMovil:
     def dibujar(self, pantalla):
         pygame.draw.rect(pantalla, self.color, self.rect)
 
+
+# ----------------------------- Clase Menu -----------------------------
+
+class Menu:
+    def __init__(self, pantalla, fuente_grande, fuente_normal, colores):
+        self.pantalla = pantalla
+        self.fuente_grande = fuente_grande
+        self.fuente_normal = fuente_normal
+        self.colores = colores
+
+        ancho = self.pantalla.get_width()
+        alto = self.pantalla.get_height()
+
+        self.estado_menu = "PRINCIPAL"
+        self.boton_jugar = pygame.Rect(ancho//2 - 100, 250, 200, 50)
+        self.boton_instrucciones = pygame.Rect(ancho//2 - 100, 320, 200, 50)
+        self.boton_salir = pygame.Rect(ancho//2 - 100, 390, 200, 50)
+        self.boton_volver = pygame.Rect(ancho//2 - 100, 450, 200, 50)
+        self.color_normal = (0, 100, 200)
+        self.color_hover = (0, 150, 255)
+
+    def _dibujar_boton(self, rect, texto, mouse_pos):
+        color_actual = self.color_hover if rect.collidepoint(mouse_pos) else self.color_normal
+        pygame.draw.rect(self.pantalla, color_actual, rect, border_radius=10)
+        texto_surf = self.fuente_normal.render(texto, True, self.colores["BLANCO"])
+        texto_rect = texto_surf.get_rect(center=rect.center)
+        self.pantalla.blit(texto_surf, texto_rect)
+
+    def dibujar(self, fondo, mouse_pos):
+        self.pantalla.blit(fondo, (0, 0))
+        if self.estado_menu == "PRINCIPAL":
+            titulo = self.fuente_grande.render("Geometry Dash", True, self.colores["BLANCO"])
+            self.pantalla.blit(titulo, (self.pantalla.get_width()//2 - titulo.get_width()//2, 150))
+            self._dibujar_boton(self.boton_jugar, "Jugar", mouse_pos)
+            self._dibujar_boton(self.boton_instrucciones, "Instrucciones", mouse_pos)
+            self._dibujar_boton(self.boton_salir, "Salir", mouse_pos)
+        else:
+            titulo = self.fuente_grande.render("Instrucciones", True, self.colores["BLANCO"])
+            self.pantalla.blit(titulo, (self.pantalla.get_width()//2 - titulo.get_width()//2, 100))
+            instrucciones = [
+                "¡Bienvenido a Geometry Dash!",
+                "",
+                "- Usa [ESPACIO] para saltar.",
+                "- Nivel 1: esquiva triángulos rojos.",
+                "- Nivel 2: obstáculos más rápidos y variables.",
+                "- ¡Consigue 10 puntos para cada nivel!"
+            ]
+            for i, linea in enumerate(instrucciones):
+                texto_linea = self.fuente_normal.render(linea, True, self.colores["BLANCO"])
+                self.pantalla.blit(texto_linea, (self.pantalla.get_width()//2 - texto_linea.get_width()//2, 200 + i * 40))
+            self._dibujar_boton(self.boton_volver, "Volver", mouse_pos)
+
+    def manejar_eventos(self, eventos):
+        for e in eventos:
+            if e.type == pygame.QUIT:
+                return "SALIR"
+            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
+                pos = e.pos
+                if self.estado_menu == "PRINCIPAL":
+                    if self.boton_jugar.collidepoint(pos): return "INICIAR_JUEGO"
+                    if self.boton_instrucciones.collidepoint(pos): self.estado_menu = "INSTRUCCIONES"
+                    if self.boton_salir.collidepoint(pos): return "SALIR"
+                else:
+                    if self.boton_volver.collidepoint(pos): self.estado_menu = "PRINCIPAL"
+        return None
+
+
 # ----------------------------- Clase principal -----------------------------
 
 class Juego:
     def __init__(self):
         self.pantalla = pygame.display.set_mode((800, 600))
-        pygame.display.set_caption("Geometry Dash - Estilo Mario")
+        pygame.display.set_caption("Geometry Dash")
         self.reloj = pygame.time.Clock()
         self.nivel_actual = 1
 
-        self.fondo = pygame.Surface((800, 600))
-        self.fondo.fill((30, 30, 30))
-
         self.colores = {
-            "AZUL": (73, 115, 255),
+            "AZUL": (0, 168, 232),
             "BLANCO": (255, 255, 255),
             "ROJO": (255, 0, 0),
-            "GRIS": (80, 80, 80),
+            "VERDE": (61, 133, 0),
         }
 
         self.velocidad_juego = 10
-        self.esta_ejecutando = True
         self.fuente_grande = pygame.font.Font(None, 74)
         self.fuente_normal = pygame.font.Font(None, 48)
+
         self.mapa_nivel_1_distancias = [600] * 20
 
-        self.plataformas_activas = []
-        self.contador_plataforma = 0  # Contador para generar plataformas cada cierto tiempo
-        
-        # Cargar música y sonidos
+        self.menu = Menu(self.pantalla, self.fuente_grande, self.fuente_normal, self.colores)
+
+        self.esta_ejecutando = True
+        self.en_menu = True
+
+        self.fondo = FONDO_NIVEL_1
+
         self.cargar_audio()
-        
-        self.inicializar_juego()
 
     def cargar_audio(self):
-        """Carga los archivos de música y sonidos"""
-        try:
-            # Cargar música de fondo del juego
-            self.musica_juego = "bossfight-Vextron.mp3"
-
-            # Cargar sonido de game over
-            self.sonido_game_over = pygame.mixer.Sound("Castle-town.mp3")
-
-            print("Audio cargado correctamente")
-
-        except pygame.error as e:
-            print(f"Error al cargar audio: {e}")
-            print("Asegúrate de que los archivos de audio estén en la misma carpeta que el juego")
-            # Crear variables vacías si no se puede cargar el audio
-            self.musica_juego = None
-            self.sonido_game_over = None
+        self.musica_juego = "bossfight-Vextron.mp3"
+        self.sonido_win = pygame.mixer.Sound("win.mp3")
+        self.sonido_lose = pygame.mixer.Sound("lose.mp3")
 
     def reproducir_musica_juego(self):
-        """Reproduce la música de fondo del juego"""
-        if self.musica_juego:
-            try:
-                pygame.mixer.music.load(self.musica_juego)
-                pygame.mixer.music.set_volume(0.04)  # Volumen al 4%
-                pygame.mixer.music.play(-1)  # Repetir indefinidamente
-            except pygame.error as e:
-                print(f"Error al reproducir música del juego: {e}")
+        pygame.mixer.music.load(self.musica_juego)
+        pygame.mixer.music.set_volume(0.04)
+        pygame.mixer.music.play(-1)
 
     def reproducir_sonido_game_over(self):
-        """Reproduce el sonido cuando se pierde"""
-        if self.sonido_game_over:
-            try:
-                pygame.mixer.music.stop()  # Detener música de fondo
-                self.sonido_game_over.set_volume(0.1)  # Volumen al 10%
-                self.sonido_game_over.play()
-            except pygame.error as e:
-                print(f"Error al reproducir sonido de game over: {e}")
+        pygame.mixer.music.stop()
+        self.sonido_lose.set_volume(0.1)
+        self.sonido_lose.play()
+
+    def reproducir_sonido_victoria(self):
+        pygame.mixer.music.stop()
+        self.sonido_win.set_volume(0.1)
+        self.sonido_win.play()
 
     def detener_audio(self):
-        """Detiene toda la música y sonidos"""
         pygame.mixer.music.stop()
-        pygame.mixer.stop()
 
     def inicializar_juego(self):
         y_suelo = 450
-        # Inicializar jugador en el suelo (y_suelo - tamaño)
         self.jugador = Jugador(100, y_suelo - 50, 50, self.colores["BLANCO"], y_suelo - 50)
-        self.suelo = Suelo(0, y_suelo, 800, 150, self.colores["GRIS"], self.velocidad_juego, 800)
+        self.suelo = Suelo(0, y_suelo, 800, 150, self.colores["VERDE"], self.velocidad_juego, 800)
 
         self.puntuacion = 0
         self.juego_terminado = False
@@ -197,7 +241,8 @@ class Juego:
         self.contador_plataforma = 0
         self.distancia_para_siguiente_obstaculo = self.obstaculos_restantes_mapa.pop(0)
 
-        # Reproducir música del juego al iniciar
+        self.fondo = FONDO_NIVEL_1 if self.nivel_actual == 1 else FONDO_NIVEL_2
+
         self.reproducir_musica_juego()
 
     def manejar_eventos(self):
@@ -253,8 +298,7 @@ class Juego:
         # Verificar victoria
         if self.puntuacion >= 20 and self.nivel_actual == 2:
             self.juego_ganado = True
-            # Detener música cuando se gana
-            self.detener_audio()
+            self.reproducir_sonido_victoria()
             return
 
         # Limpiar obstáculos fuera de pantalla
@@ -318,18 +362,34 @@ class Juego:
             self.pantalla.blit(texto_final, (400 - texto_final.get_width() // 2, 200))
             self.pantalla.blit(texto_puntuacion_final, (400 - texto_puntuacion_final.get_width() // 2, 280))
             self.pantalla.blit(texto_reiniciar, (400 - texto_reiniciar.get_width() // 2, 330))
+    
+
 
     def ejecutar_juego(self):
         while self.esta_ejecutando:
-            self.manejar_eventos()
-            self.actualizar_juego()
-            self.dibujar_juego()
-            pygame.display.flip()
-            self.reloj.tick(60)
-        
-        # Detener audio antes de salir
+            if self.en_menu:
+                eventos = pygame.event.get()
+                accion = self.menu.manejar_eventos(eventos)
+                if accion == "INICIAR_JUEGO":
+                    self.inicializar_juego()
+                    self.en_menu = False
+                elif accion == "SALIR":
+                    self.esta_ejecutando = False
+                else:
+                    mouse_pos = pygame.mouse.get_pos()
+                    self.menu.dibujar(self.fondo, mouse_pos)
+                    pygame.display.flip()
+                    self.reloj.tick(60)
+            else:
+                self.manejar_eventos()
+                self.actualizar_juego()
+                self.dibujar_juego()
+                pygame.display.flip()
+                self.reloj.tick(60)
+
         self.detener_audio()
         pygame.quit()
+
 
 if __name__ == "__main__":
     Juego().ejecutar_juego()
